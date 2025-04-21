@@ -219,7 +219,7 @@ def main():
     parser.add_argument(
         "--logdir",
         default=str(
-            config.project_path / "tensorboard_log" / "pretrain" / "pretrian_gmim_RAOS"
+            config.project_path / "tensorboard_log" / "pretrain" / "pretrain_gmim_RAOS"
         ),
         type=str,
         help="directory to save the tensorboard logs",
