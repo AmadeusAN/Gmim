@@ -16,6 +16,7 @@ from .swin_uneter import SwinTransformer as SwinViT
 from monai.utils import ensure_tuple_rep
 from monai import transforms
 from einops import rearrange
+from utils import config
 
 transform = transforms.Compose(
     [
@@ -32,7 +33,7 @@ def aug_rand(samples):
 
 
 class SSLHead(nn.Module):
-    def __init__(self, args, upsample="vae", dim=768):
+    def __init__(self, args, upsample="vae", dim=576):
         super(SSLHead, self).__init__()
         patch_size = ensure_tuple_rep(2, args.spatial_dims)
         window_size = ensure_tuple_rep(7, args.spatial_dims)
@@ -41,12 +42,12 @@ class SSLHead(nn.Module):
             embed_dim=args.feature_size,
             window_size=window_size,
             patch_size=patch_size,
-            depths=[2, 2, 2, 2],
-            num_heads=[3, 6, 12, 24],
-            mlp_ratio=4.0,
+            depths=config.vit_depths,
+            num_heads=config.vit_heads,
+            mlp_ratio=config.vit_mlp_ratio,
             qkv_bias=True,
-            drop_rate=0.0,
-            attn_drop_rate=0.0,
+            drop_rate=config.vit_drop_rate,
+            attn_drop_rate=config.vit_attn_drop_rate,
             drop_path_rate=args.dropout_path_rate,
             norm_layer=torch.nn.LayerNorm,
             use_checkpoint=args.use_checkpoint,
@@ -55,7 +56,7 @@ class SSLHead(nn.Module):
             hierarchical_masking=args.hierarchical_masking,
             basic_mask_ratio=args.basic_mask_ratio,
             scale=args.scale,
-            drop_ratio=args.drop_ratio
+            drop_ratio=args.drop_ratio,
         )
 
         self.swinViT_contrastive = SwinViT(
@@ -87,14 +88,26 @@ class SSLHead(nn.Module):
         self.contrastive_head_y = nn.Linear(dim, 512)
 
         if upsample == "large_kernel_deconv":
-            self.conv = nn.ConvTranspose3d(dim, args.in_channels, kernel_size=(32, 32, 32), stride=(32, 32, 32))
+            self.conv = nn.ConvTranspose3d(
+                dim, args.in_channels, kernel_size=(32, 32, 32), stride=(32, 32, 32)
+            )
         elif upsample == "deconv":
             self.conv = nn.Sequential(
-                nn.ConvTranspose3d(dim, dim // 2, kernel_size=(2, 2, 2), stride=(2, 2, 2)),
-                nn.ConvTranspose3d(dim // 2, dim // 4, kernel_size=(2, 2, 2), stride=(2, 2, 2)),
-                nn.ConvTranspose3d(dim // 4, dim // 8, kernel_size=(2, 2, 2), stride=(2, 2, 2)),
-                nn.ConvTranspose3d(dim // 8, dim // 16, kernel_size=(2, 2, 2), stride=(2, 2, 2)),
-                nn.ConvTranspose3d(dim // 16, args.in_channels, kernel_size=(2, 2, 2), stride=(2, 2, 2)),
+                nn.ConvTranspose3d(
+                    dim, dim // 2, kernel_size=(2, 2, 2), stride=(2, 2, 2)
+                ),
+                nn.ConvTranspose3d(
+                    dim // 2, dim // 4, kernel_size=(2, 2, 2), stride=(2, 2, 2)
+                ),
+                nn.ConvTranspose3d(
+                    dim // 4, dim // 8, kernel_size=(2, 2, 2), stride=(2, 2, 2)
+                ),
+                nn.ConvTranspose3d(
+                    dim // 8, dim // 16, kernel_size=(2, 2, 2), stride=(2, 2, 2)
+                ),
+                nn.ConvTranspose3d(
+                    dim // 16, args.in_channels, kernel_size=(2, 2, 2), stride=(2, 2, 2)
+                ),
             )
         elif upsample == "vae":
             self.conv = nn.Sequential(
@@ -122,7 +135,9 @@ class SSLHead(nn.Module):
             )
 
     def copy_weight(self):
-        for (_, ema_param), (_, model_param) in zip(self.swinViT_contrastive.named_parameters(), self.swinViT.named_parameters()):
+        for (_, ema_param), (_, model_param) in zip(
+            self.swinViT_contrastive.named_parameters(), self.swinViT.named_parameters()
+        ):
             ema_param.data = model_param.data
             ema_param.requires_grad = False
 
@@ -152,8 +167,4 @@ class SSLHead(nn.Module):
         x_rec = x_out.flatten(start_dim=2, end_dim=4)
         x_rec = x_rec.view(-1, c, h, w, d)
         x_rec = self.conv(x_rec)
-        return x_contrastive, y_contrastive,  x_rec
-
-
-
-
+        return x_contrastive, y_contrastive, x_rec
