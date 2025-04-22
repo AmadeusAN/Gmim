@@ -417,6 +417,7 @@ def main():
     model.cuda()
 
     optimizer = None
+    scheduler = None
     # Define optimizer and scheduler
     if args.opt == "adam":
         optimizer = optim.Adam(
