@@ -29,8 +29,10 @@ from utils import config
 
 from einops import rearrange
 
+from thop import profile, clever_format
 
-def main():
+
+def main(thop_test: bool = False):
     def save_ckp(
         model, filename="ckpt.pt", optimizer=None, global_step=None, scheduler=None
     ):
@@ -59,6 +61,16 @@ def main():
             t1 = time()
             x = batch[0]["image"].cuda()
             y = batch[1]["image"].cuda()
+
+            if thop_test:
+                b = x.shape[0]
+                x, y = x.cpu(), y.cpu()
+                model.cpu()
+                macs, params = profile(model, inputs=(x, y))
+                macs, params = macs / b, params / b
+                macs, params = clever_format([macs, params], "%.3f")
+                print(macs, params)
+                return
 
             with autocast(enabled=args.amp):
                 contrastive1_x, contrastive1_y, rec_x1 = model(x, y)
@@ -485,6 +497,8 @@ def main():
         global_step, loss, best_val = train(
             args, global_step, train_loader, best_val, scaler
         )
+        if thop_test:
+            return
 
     save_ckp(
         model,
@@ -496,4 +510,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(thop_test=True)
