@@ -237,10 +237,10 @@ def main(thop_test: bool = False):
         help="directory to save the tensorboard logs",
     )
     parser.add_argument(
-        "--num_steps", default=100000, type=int, help="number of training iterations"
+        "--num_steps", default=4000, type=int, help="number of training iterations"
     )
     parser.add_argument(
-        "--eval_num", default=100, type=int, help="evaluation frequency"
+        "--eval_num", default=200, type=int, help="evaluation frequency"
     )
     parser.add_argument("--warmup_steps", default=500, type=int, help="warmup steps")
     parser.add_argument(
@@ -264,16 +264,28 @@ def main(thop_test: bool = False):
         "--spatial_dims", default=3, type=int, help="spatial dimension of input data"
     )
     parser.add_argument(
-        "--a_min", default=-1000, type=float, help="a_min in ScaleIntensityRanged"
+        "--a_min",
+        default=config.scale_range_amin,
+        type=float,
+        help="a_min in ScaleIntensityRanged",
     )
     parser.add_argument(
-        "--a_max", default=1000, type=float, help="a_max in ScaleIntensityRanged"
+        "--a_max",
+        default=config.scale_range_amax,
+        type=float,
+        help="a_max in ScaleIntensityRanged",
     )
     parser.add_argument(
-        "--b_min", default=0.0, type=float, help="b_min in ScaleIntensityRanged"
+        "--b_min",
+        default=config.scale_range_bmin,
+        type=float,
+        help="b_min in ScaleIntensityRanged",
     )
     parser.add_argument(
-        "--b_max", default=1.0, type=float, help="b_max in ScaleIntensityRanged"
+        "--b_max",
+        default=config.scale_range_bmax,
+        type=float,
+        help="b_max in ScaleIntensityRanged",
     )
     parser.add_argument(
         "--space_x",
@@ -321,10 +333,10 @@ def main(thop_test: bool = False):
         help="number of sliding window batch size",
     )
     parser.add_argument("--lr", default=4e-4, type=float, help="learning rate")
-    parser.add_argument("--decay", default=0.1, type=float, help="decay rate")
+    parser.add_argument("--decay", default=1e-5, type=float, help="decay rate")
     parser.add_argument("--momentum", default=0.9, type=float, help="momentum")
     parser.add_argument(
-        "--lrdecay", action="store_true", help="enable learning rate decay"
+        "--lrdecay", action="store_false", help="enable learning rate decay"
     )
     parser.add_argument(
         "--max_grad_norm", default=1.0, type=float, help="maximum gradient norm"
@@ -351,8 +363,8 @@ def main(thop_test: bool = False):
     )
 
     # masklayer
-    parser.add_argument("--dynamic_masking", action="store_true")
-    parser.add_argument("--hierarchical_masking", default=0.0, type=float)
+    parser.add_argument("--dynamic_masking", action="store_false")
+    parser.add_argument("--hierarchical_masking", default=0.5, type=float)
     parser.add_argument("--basic_mask_ratio", default=0.5, type=float)
     parser.add_argument("--drop_ratio", default=config.vit_drop_rate, type=float)
     parser.add_argument("--scale", default=0.3, type=float)
@@ -372,7 +384,7 @@ def main(thop_test: bool = False):
     parser.add_argument("--workers", default=8, type=int, help="number of workers")
 
     parser.add_argument(
-        "--invis_patches", action="store_true", help="calculate loss on masked patches"
+        "--invis_patches", action="store_false", help="calculate loss on masked patches"
     )
 
     args = parser.parse_args()
@@ -510,4 +522,7 @@ def main(thop_test: bool = False):
 
 
 if __name__ == "__main__":
-    main(thop_test=True)
+    import os
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    main(thop_test=False)
